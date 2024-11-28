@@ -1,10 +1,6 @@
-{ substituteAll
-, python3Packages
-}:
-
+{ substituteAll, python3Packages }:
 let
-  inherit (python3Packages)
-    argcomplete;
+  inherit (python3Packages) argcomplete;
 in
 substituteAll {
   name = "workspace-autocomplete-setup.sh";
