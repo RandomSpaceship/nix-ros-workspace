@@ -1,62 +1,90 @@
-{ lib
-, runCommand
-, writeShellScriptBin
-, buildROSEnv
-, buildROSWorkspace
-, mkShell
-, python
-, colcon
-, rmw-fastrtps-dynamic-cpp
-, ros-core
-, workspace-autocomplete-setup
+{
+  lib,
+  runCommand,
+  writeShellScriptBin,
+  buildROSEnv,
+  buildROSWorkspace,
+  mkShell,
+  python,
+  colcon,
+  rmw-fastrtps-dynamic-cpp,
+  ros-core,
+  workspace-autocomplete-setup,
 
-, manualDomainId ? builtins.getEnv "NRWS_DOMAIN_ID"
+  manualDomainId ? builtins.getEnv "NRWS_DOMAIN_ID",
 }:
 
 {
   # The name of the workspace.
-  name ? "ros-workspace"
+  name ? "ros-workspace",
 
   # Configure the workspace for interactive use.
-, interactive ? true
+  interactive ? true,
 
-, devPackages ? { }
-, prebuiltPackages ? { }
-, prebuiltShellPackages ? { }
+  devPackages ? { },
+  prebuiltPackages ? { },
+  prebuiltShellPackages ? { },
 }@args:
 
 let
   domainId = if manualDomainId == "" then 0 else manualDomainId;
 
-  partitionAttrs = pred: lib.foldlAttrs
-    (t: key: value:
-      if pred key value
-      then { right = t.right // { ${key} = value; }; inherit (t) wrong; }
-      else { inherit (t) right; wrong = t.wrong // { ${key} = value; }; })
-    { right = { }; wrong = { }; };
+  partitionAttrs =
+    pred:
+    lib.foldlAttrs
+      (
+        t: key: value:
+        if pred key value then
+          {
+            right = t.right // {
+              ${key} = value;
+            };
+            inherit (t) wrong;
+          }
+        else
+          {
+            inherit (t) right;
+            wrong = t.wrong // {
+              ${key} = value;
+            };
+          }
+      )
+      {
+        right = { };
+        wrong = { };
+      };
 
   # Recursively finds required workspace sibling packages of the given package.
-  getWorkspacePackages = package:
-    let workspacePackages = package.workspacePackages or { };
-    in workspacePackages // getWorkspacePackages' workspacePackages;
+  getWorkspacePackages =
+    package:
+    let
+      workspacePackages = package.workspacePackages or { };
+    in
+    workspacePackages // getWorkspacePackages' workspacePackages;
 
   # Recursively finds required workspace sibling packages of the given attribute set of packages.
-  getWorkspacePackages' = packages: builtins.foldl' (acc: curr: acc // getWorkspacePackages curr) { } (builtins.attrValues packages);
+  getWorkspacePackages' =
+    packages:
+    builtins.foldl' (acc: curr: acc // getWorkspacePackages curr) { } (builtins.attrValues packages);
 
   # Include standard packages in the workspace.
-  standardPackages = {
-    inherit ros-core;
-  } // lib.optionalAttrs interactive {
-    workspace-shell-setup = writeShellScriptBin "mk-workspace-shell-setup"
-      # The shell setup script is designed to be sourced.
-      # By appearing to generate the script dynamically, this pattern is
-      # enforced, as there is no file that can be executed by mistake.
-      "cat ${workspace-autocomplete-setup}";
-  };
+  standardPackages =
+    {
+      inherit ros-core;
+    }
+    // lib.optionalAttrs interactive {
+      workspace-shell-setup =
+        writeShellScriptBin "mk-workspace-shell-setup"
+          # The shell setup script is designed to be sourced.
+          # By appearing to generate the script dynamically, this pattern is
+          # enforced, as there is no file that can be executed by mistake.
+          "cat ${workspace-autocomplete-setup}";
+    };
 
   # Collate the standard and extra prebuilt package sets, and add any sibling packages that they require.
   allPrebuiltPackages =
-    standardPackages // prebuiltPackages
+    standardPackages
+    // prebuiltPackages
     // getWorkspacePackages' (standardPackages // prebuiltPackages // devPackages);
 
   # Sort packages into various categories.
@@ -68,7 +96,9 @@ let
   rosPrebuiltPackages = splitRosPrebuiltPackages.right;
   otherPrebuiltPackages = splitRosPrebuiltPackages.wrong;
 
-  splitPrebuiltShellPackages = partitionAttrs (name: pkg: pkg.rosPackage or false) (prebuiltShellPackages // getWorkspacePackages' prebuiltShellPackages);
+  splitPrebuiltShellPackages = partitionAttrs (name: pkg: pkg.rosPackage or false) (
+    prebuiltShellPackages // getWorkspacePackages' prebuiltShellPackages
+  );
   rosPrebuiltShellPackages = splitPrebuiltShellPackages.right;
   otherPrebuiltShellPackages = splitPrebuiltShellPackages.wrong;
 
@@ -77,32 +107,44 @@ let
   rosPackages = rosDevPackages // rosPrebuiltPackages;
   otherPackages = otherDevPackages // otherPrebuiltPackages;
 
-  workspace = (buildROSEnv {
-    paths = builtins.attrValues rosPackages;
-    postBuild = ''
-      rosWrapperArgs+=(--set-default ROS_DOMAIN_ID ${toString domainId})
-    '';
-  }).override ({ paths ? [ ], passthru ? { }, ... }: {
-    # Change the name from the default "ros-env".
-    name = "ros-${ros-core.rosDistro}-${name}-workspace";
+  workspace =
+    (buildROSEnv {
+      paths = builtins.attrValues rosPackages;
+      postBuild = ''
+        rosWrapperArgs+=(--set-default ROS_DOMAIN_ID ${toString domainId})
+      '';
+    }).override
+      (
+        {
+          paths ? [ ],
+          passthru ? { },
+          ...
+        }:
+        {
+          # Change the name from the default "ros-env".
+          name = "ros-${ros-core.rosDistro}-${name}-workspace";
 
-    # The ROS overlay's buildEnv has special logic to wrap ROS packages so that
-    # they can find each other.
-    # Unlike the regular buildEnv from Nixpkgs, however, it is designed only with
-    # nix-shell in mind, and propagates non-ROS packages rather than including
-    # them properly.
-    # We must therefore manually add the non-ROS packages to the environment.
-    paths = paths ++ builtins.attrValues otherPackages;
+          # The ROS overlay's buildEnv has special logic to wrap ROS packages so that
+          # they can find each other.
+          # Unlike the regular buildEnv from Nixpkgs, however, it is designed only with
+          # nix-shell in mind, and propagates non-ROS packages rather than including
+          # them properly.
+          # We must therefore manually add the non-ROS packages to the environment.
+          paths = paths ++ builtins.attrValues otherPackages;
 
-    passthru = passthru // {
-      inherit
-        env
-        standardPackages
-        devPackages prebuiltPackages
-        rosPackages otherPackages;
-      inherit (ros-core) rosVersion rosDistro;
-    };
-  });
+          passthru = passthru // {
+            inherit
+              env
+              standardPackages
+              devPackages
+              prebuiltPackages
+              rosPackages
+              otherPackages
+              ;
+            inherit (ros-core) rosVersion rosDistro;
+          };
+        }
+      );
 
   # The workspace shell environment includes non-dev packages as-is as well as
   # build inputs of dev packages.
@@ -113,9 +155,7 @@ let
     let
       rosEnv = buildROSEnv {
         wrapPrograms = false;
-        paths =
-          builtins.attrValues rosPrebuiltPackages
-          ++ builtins.attrValues rosPrebuiltShellPackages;
+        paths = builtins.attrValues rosPrebuiltPackages ++ builtins.attrValues rosPrebuiltShellPackages;
       };
     in
     mkShell {
@@ -136,20 +176,30 @@ let
 
       passthru =
         let
-          forDevPackageEnvs = builtins.mapAttrs
-            (key: pkg: (buildROSWorkspace (args // {
-              name = "${name}-env-for-${pkg.name}";
-              devPackages.${key} = pkg;
-              prebuiltPackages = args.prebuiltPackages // builtins.removeAttrs args.devPackages [ key ];
-            })).env)
-            devPackages;
-          andDevPackageEnvs = builtins.mapAttrs
-            (key: pkg: (buildROSWorkspace (args // {
-              name = "${name}-env-and-${pkg.name}";
-              devPackages = args.devPackages // { ${key} = pkg; };
-              prebuiltPackages = builtins.removeAttrs args.prebuiltPackages [ key ];
-            })).env)
-            prebuiltPackages;
+          forDevPackageEnvs = builtins.mapAttrs (
+            key: pkg:
+            (buildROSWorkspace (
+              args
+              // {
+                name = "${name}-env-for-${pkg.name}";
+                devPackages.${key} = pkg;
+                prebuiltPackages = args.prebuiltPackages // builtins.removeAttrs args.devPackages [ key ];
+              }
+            )).env
+          ) devPackages;
+          andDevPackageEnvs = builtins.mapAttrs (
+            key: pkg:
+            (buildROSWorkspace (
+              args
+              // {
+                name = "${name}-env-and-${pkg.name}";
+                devPackages = args.devPackages // {
+                  ${key} = pkg;
+                };
+                prebuiltPackages = builtins.removeAttrs args.prebuiltPackages [ key ];
+              }
+            )).env
+          ) prebuiltPackages;
         in
         {
           inherit workspace rosEnv;
@@ -162,7 +212,8 @@ let
         }
         # Pass through "for" and "and" attributes for CLI convenience.
         # They do not conflict, because "for" is generated from devPackages and "and" is generated from prebuiltPackages.
-        // forDevPackageEnvs // andDevPackageEnvs;
+        // forDevPackageEnvs
+        // andDevPackageEnvs;
 
       shellHook = ''
         # The ament setup hooks and propagated build inputs cause path variables
