@@ -308,6 +308,9 @@ let
         export CMAKE_PREFIX_PATH="${rosEnv}:$CMAKE_PREFIX_PATH"
         export AMENT_PREFIX_PATH="${rosEnv}:$AMENT_PREFIX_PATH"
         export ROS_PACKAGE_PATH="${rosEnv}/share:$ROS_PACKAGE_PATH"
+        # Create an environment variable pointing to the workspace to allow
+        # easy IDE include path configuration.
+        export ROS_WORKSPACE_ENV_PATH="${rosEnv}"
 
         # Set the domain ID.
         export ROS_DOMAIN_ID=${toString environmentDomainId}
