@@ -1,14 +1,11 @@
 {
   lib,
-  substituteAll,
-  runCommand,
   writeShellScriptBin,
   buildROSEnv,
   buildROSWorkspace,
   mkShell,
   python,
   colcon,
-  rmw-fastrtps-dynamic-cpp,
   ros-core,
   workspace-autocomplete-setup,
 
