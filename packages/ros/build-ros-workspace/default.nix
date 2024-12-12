@@ -221,18 +221,25 @@ let
         builtins.attrValues rosDevPackages
       );
 
-      rosEnv = buildROSEnv {
-        paths =
-          builtins.attrValues rosPrebuiltPackages
-          ++ builtins.attrValues rosPrebuiltShellPackages
-          ++ allRosDevDependencies;
-        postBuild = ''
-          rosWrapperArgs+=(--set-default ROS_DOMAIN_ID ${toString environmentDomainId})
-        '';
-      };
+      rosEnv =
+        (buildROSEnv {
+          paths =
+            builtins.attrValues rosPrebuiltPackages
+            ++ builtins.attrValues rosPrebuiltShellPackages
+            ++ allRosDevDependencies;
+          postBuild = ''
+            rosWrapperArgs+=(--set-default ROS_DOMAIN_ID ${toString environmentDomainId})
+          '';
+        }).override
+          (
+            { ... }:
+            {
+              name = "ros-${ros-core.rosDistro}-${name}-shell-env";
+            }
+          );
     in
     mkShell {
-      name = "${workspace.name}-env";
+      name = "ros-${ros-core.rosDistro}-${name}-shell";
 
       packages =
         builtins.attrValues otherPrebuiltPackages
