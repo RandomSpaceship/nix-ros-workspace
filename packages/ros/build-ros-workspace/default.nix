@@ -28,31 +28,32 @@ let
   domainId = if manualDomainId == "" then 0 else manualDomainId;
 
   partitionAttrs =
-    pred:
+    predicate:
     lib.foldlAttrs
       (
-        t: key: value:
-        if pred key value then
+        acc: key: value:
+        if (predicate key value) then
           {
-            right = t.right // {
+            right = acc.right // {
               ${key} = value;
             };
-            inherit (t) wrong;
+            inherit (acc) wrong;
           }
         else
           {
-            inherit (t) right;
-            wrong = t.wrong // {
+            inherit (acc) right;
+            wrong = acc.wrong // {
               ${key} = value;
             };
           }
       )
+      # Initial accumulator value
       {
         right = { };
         wrong = { };
       };
 
-  # Recursively finds required workspace sibling packages of the given package.
+  # Recursively finds required dependency workspacePackages of the given package.
   getWorkspacePackages =
     package:
     let
@@ -60,10 +61,12 @@ let
     in
     workspacePackages // getWorkspacePackages' workspacePackages;
 
-  # Recursively finds required workspace sibling packages of the given attribute set of packages.
+  # Same as getWorkspacePackages, but takes an attribute set of packages.
   getWorkspacePackages' =
     packages:
-    builtins.foldl' (acc: curr: acc // getWorkspacePackages curr) { } (builtins.attrValues packages);
+    builtins.foldl' (accPkgs: currPkg: accPkgs // (getWorkspacePackages currPkg)) { } (
+      builtins.attrValues packages
+    );
 
   # Include standard packages in the workspace.
   standardPackages =
@@ -85,7 +88,7 @@ let
     // prebuiltPackages
     // getWorkspacePackages' (standardPackages // prebuiltPackages // devPackages);
 
-  # Sort packages into various categories.
+  # Sort package groups into ROS and other (non-ROS).
   splitRosDevPackages = partitionAttrs (name: pkg: pkg.rosPackage or false) (devPackages);
   rosDevPackages = splitRosDevPackages.right;
   otherDevPackages = splitRosDevPackages.wrong;
