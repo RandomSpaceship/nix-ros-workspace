@@ -28,5 +28,10 @@
       {
         formatter = pkgs.nixfmt-rfc-style;
       }
-    );
+    )
+    // {
+      overlays = {
+        default = (import ./overlay);
+      };
+    };
 }
