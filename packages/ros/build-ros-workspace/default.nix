@@ -163,9 +163,69 @@ let
   # and dependencies available.
   env =
     let
+      # Get a flattened list of all attributes named ${name} in the provided package list,
+      # which pass the provided filter predicate.
+      getFilteredAttrs =
+        packages: filter: name:
+        builtins.filter filter
+          # see mkShell for where this comes from - same pattern as used for inputsFrom
+          (lib.flatten (lib.catAttrs name packages));
+
+      # Get all dependencies (recursively) of the provided packages which pass the filter,
+      # excluding those in the excludedPkgs list.
+      getAllDependencies' =
+        filter: packages: excludedPkgs:
+        let
+          # Get all dependencies of the provided packages which pass the filter.
+          allDependencies = builtins.concatMap (getFilteredAttrs packages filter) [
+            "buildInputs"
+            "nativeBuildInputs"
+            "propagatedBuildInputs"
+            "propagatedNativeBuildInputs"
+          ];
+          # We don't want to return the input packages, so add them to the exclude list.
+          finalExcludePkgs = packages ++ excludedPkgs;
+          # And finally, remove all excluded packages from the output list.
+          filteredDependencies = lib.subtractLists finalExcludePkgs allDependencies;
+        in
+        # Break the recursion if there are no packages to check.
+        if packages == [ ] then
+          [ ]
+        else
+          # Add the current dependencies to the list.
+          filteredDependencies
+          # And also add the dependencies of all the dependencies we just found.
+          # Since we exclude the packages we've already found (see finalExcludePkgs),
+          # this list will get smaller over time and as such won't recurse infinitely.
+          ++ (getAllDependencies' filter filteredDependencies finalExcludePkgs);
+
+      # Get (recursively) all dependencies of the provided packages which pass the provided filter
+      getAllDependencies = filter: packages: getAllDependencies' filter packages [ ];
+
+      # Check if a package is a development package.
+      isDevPackage = package: builtins.elem package (builtins.attrValues devPackages);
+      # Check if a value is:
+      # - A derivation - this is needed because some packages depend on a *path* rather than a derivation,
+      #   which breaks a whole bunch of logic.
+      # - Not a development package.
+      # - And is a ROS package - non-ROS packages don't need this workaround.
+      isValidRosDependency =
+        package: (lib.isDerivation package) && !(isDevPackage package) && (isRosPackage package);
+
+      # List of all ROS build inputs of the ROS packages in development.
+      # Normally this is handled entirely using the inputsFrom argument of mkShell,
+      # but that breaks some ROS packages which use pluginlib to load libraries from other packages.
+      # (notably, robot_state_publisher - it fails to load librobot_state_publisher_node.so)
+      # By adding all build inputs to the environment, everything loads correctly.
+      allRosDevDependencies = getAllDependencies isValidRosDependency (
+        builtins.attrValues rosDevPackages
+      );
+
       rosEnv = buildROSEnv {
-        wrapPrograms = false;
-        paths = builtins.attrValues rosPrebuiltPackages ++ builtins.attrValues rosPrebuiltShellPackages;
+        paths =
+          builtins.attrValues rosPrebuiltPackages
+          ++ builtins.attrValues rosPrebuiltShellPackages
+          ++ allRosDevDependencies;
         postBuild = ''
           rosWrapperArgs+=(--set-default ROS_DOMAIN_ID ${toString environmentDomainId})
         '';
@@ -185,7 +245,7 @@ let
           colcon
         ];
 
-      inputsFrom = [ rosEnv.env ] ++ builtins.attrValues devPackages;
+      inputsFrom = [ rosEnv.env ] ++ (builtins.attrValues devPackages);
 
       passthru =
         let
