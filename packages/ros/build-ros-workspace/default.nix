@@ -53,6 +53,9 @@ let
         wrong = { };
       };
 
+  # Check if a package is a ROS package.
+  isRosPackage = package: package.rosPackage or false;
+
   # Recursively finds required dependency workspacePackages of the given package.
   getWorkspacePackages =
     package:
@@ -89,15 +92,15 @@ let
     // getWorkspacePackages' (standardPackages // prebuiltPackages // devPackages);
 
   # Sort package groups into ROS and other (non-ROS).
-  splitRosDevPackages = partitionAttrs (name: pkg: pkg.rosPackage or false) (devPackages);
+  splitRosDevPackages = partitionAttrs (name: isRosPackage) devPackages;
   rosDevPackages = splitRosDevPackages.right;
   otherDevPackages = splitRosDevPackages.wrong;
 
-  splitRosPrebuiltPackages = partitionAttrs (name: pkg: pkg.rosPackage or false) allPrebuiltPackages;
+  splitRosPrebuiltPackages = partitionAttrs (name: isRosPackage) allPrebuiltPackages;
   rosPrebuiltPackages = splitRosPrebuiltPackages.right;
   otherPrebuiltPackages = splitRosPrebuiltPackages.wrong;
 
-  splitPrebuiltShellPackages = partitionAttrs (name: pkg: pkg.rosPackage or false) (
+  splitPrebuiltShellPackages = partitionAttrs (name: isRosPackage) (
     prebuiltShellPackages // getWorkspacePackages' prebuiltShellPackages
   );
   rosPrebuiltShellPackages = splitPrebuiltShellPackages.right;
