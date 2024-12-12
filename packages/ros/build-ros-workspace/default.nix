@@ -11,7 +11,9 @@
 
   manualDomainId ? builtins.getEnv "NRWS_DOMAIN_ID",
 }:
-
+let
+  domainId = if manualDomainId == "" then 0 else manualDomainId;
+in
 {
   # The name of the workspace.
   name ? "ros-workspace",
@@ -22,11 +24,13 @@
   devPackages ? { },
   prebuiltPackages ? { },
   prebuiltShellPackages ? { },
+
+  releaseDomainId ? domainId,
+  environmentDomainId ? domainId,
+  forceReleaseDomainId ? false,
 }@args:
 
 let
-  domainId = if manualDomainId == "" then 0 else manualDomainId;
-
   partitionAttrs =
     predicate:
     lib.foldlAttrs
@@ -115,7 +119,9 @@ let
     (buildROSEnv {
       paths = builtins.attrValues rosPackages;
       postBuild = ''
-        rosWrapperArgs+=(--set-default ROS_DOMAIN_ID ${toString domainId})
+        rosWrapperArgs+=(${
+          if forceReleaseDomainId then "--set" else "--set-default"
+        } ROS_DOMAIN_ID ${toString releaseDomainId})
       '';
     }).override
       (
@@ -160,6 +166,9 @@ let
       rosEnv = buildROSEnv {
         wrapPrograms = false;
         paths = builtins.attrValues rosPrebuiltPackages ++ builtins.attrValues rosPrebuiltShellPackages;
+        postBuild = ''
+          rosWrapperArgs+=(--set-default ROS_DOMAIN_ID ${toString environmentDomainId})
+        '';
       };
     in
     mkShell {
@@ -234,7 +243,7 @@ let
         export ROS_PACKAGE_PATH="${rosEnv}/share:$ROS_PACKAGE_PATH"
 
         # Set the domain ID.
-        export ROS_DOMAIN_ID=${toString domainId}
+        export ROS_DOMAIN_ID=${toString environmentDomainId}
 
         # Explicitly set the Python executable used by colcon.
         # By default, colcon will attempt to use the Python executable known at
