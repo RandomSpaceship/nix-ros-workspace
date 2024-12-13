@@ -2,13 +2,12 @@
   description = "Workspace builder for ROS based on lopsided98/nix-ros-overlay";
 
   inputs = {
-    nix-ros-overlay.url = "github:lopsided98/nix-ros-overlay";
+    nix-ros-overlay.url = "github:lopsided98/nix-ros-overlay/master";
     nixpkgs.follows = "nix-ros-overlay/nixpkgs"; # IMPORTANT!!!
   };
 
   outputs =
     {
-      self,
       nix-ros-overlay,
       nixpkgs,
     }:
