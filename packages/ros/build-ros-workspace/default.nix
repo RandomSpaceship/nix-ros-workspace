@@ -28,6 +28,9 @@ in
   releaseDomainId ? domainId,
   environmentDomainId ? domainId,
   forceReleaseDomainId ? false,
+
+  preShellHook ? "",
+  postShellHook ? "",
 }@args:
 
 let
@@ -296,6 +299,7 @@ let
         // andDevPackageEnvs;
 
       shellHook = ''
+        ${preShellHook}
         # The ament setup hooks and propagated build inputs cause path variables
         # to be set in strange orders.
         # For example, it is common to end up with a regular Python executable
@@ -332,6 +336,7 @@ let
             echo >&2 'Set I_WILL_RUN_WORKSPACE_SHELL_SETUP=1 to silence this message.'
           fi
         fi
+        ${postShellHook}
       '';
     };
 in
