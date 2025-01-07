@@ -31,6 +31,8 @@ in
 
   preShellHook ? "",
   postShellHook ? "",
+
+  extraRosWrapperArgs ? "",
 }@args:
 
 let
@@ -122,9 +124,11 @@ let
     (buildROSEnv {
       paths = builtins.attrValues rosPackages;
       postBuild = ''
+        rosWrapperArgs+=(--prefix GZ_SIM_SYSTEM_PLUGIN_PATH : "$out/lib")
         rosWrapperArgs+=(${
           if forceReleaseDomainId then "--set" else "--set-default"
         } ROS_DOMAIN_ID ${toString releaseDomainId})
+        rosWrapperArgs+=(${extraRosWrapperArgs})
       '';
     }).override
       (
@@ -231,7 +235,9 @@ let
             ++ builtins.attrValues rosPrebuiltShellPackages
             ++ allRosDevDependencies;
           postBuild = ''
+            rosWrapperArgs+=(--prefix GZ_SIM_SYSTEM_PLUGIN_PATH : "$out/lib")
             rosWrapperArgs+=(--set-default ROS_DOMAIN_ID ${toString environmentDomainId})
+            rosWrapperArgs+=(${extraRosWrapperArgs})
           '';
         }).override
           (
