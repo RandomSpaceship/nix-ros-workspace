@@ -4,7 +4,35 @@ An opinionated builder for ROS workspaces using [lopsided98/nix-ros-overlay].
 
 ## Quickstart
 
-To open a shell with ROS 2 "Jazzy Jalisco", `rviz2`, and `turtlesim`:
+> [!WARNING]
+> To apply any substituter changes and allow binary downloads, you either need to run nix commands with `sudo`, add yourself to [`trusted-users`](https://nix.dev/manual/nix/2.33/command-ref/conf-file.html#conf-trusted-users), or add the cache as a trusted substiter in your Nix config.
+> 
+> The last option is by far the best, as adding yourself to `trusted-users` is a [massive security risk](https://github.com/NixOS/nix/issues/9649#issuecomment-1868001568).
+> However, if you don't apply substituter changes, all software will build locally the first time it's needed.
+
+### Flakes (recommended)
+
+To open a shell with ROS 2 "Jazzy Jalisco", `rviz2`, and `turtlesim` (configured in `flake.nix`):
+
+```console
+nix --extra-experimental-features "nix-command flakes" shell github:hacker1024/nix-ros-workspace#turtlesim
+```
+
+Once in the shell, run this to set up autocomplete:
+
+```console
+eval "$(mk-workspace-shell-setup)"
+```
+
+And to build the derivation:
+
+```console
+nix --extra-experimental-features "nix-command flakes" build github:hacker1024/nix-ros-workspace#turtlesim
+```
+
+### "Classic" Nix
+
+To open a shell with the same configuration as the flake:
 
 ```console
 $ nix-shell \
