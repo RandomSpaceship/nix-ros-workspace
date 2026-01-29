@@ -39,16 +39,24 @@ issues.
 
 ## Setup
 
-1. Set up [lopsided98/nix-ros-overlay], ensuring that [PR #269](https://github.com/lopsided98/nix-ros-overlay/pull/269) is included.
+### Flakes
+
+1. Set up [lopsided98/nix-ros-overlay].
+2. Add this repository as a flake input.
+3. Apply the default overlay after `nix-ros-overlay`: `nix-ros-workspace.overlays.default`
+
+### "Classic" Nix
+
+1. Set up [lopsided98/nix-ros-overlay].
 2. Add the overlay from this repository (`(import /path/to/repository { }).overlay`).
 
 ## Usage
 
 ### API
 
-`buildROSWorkspace` is included in the ROS distro package sets. The following
-examples are designed to be invoked with [`callPackage`](https://nixos.org/guides/nix-pills/callpackage-design-pattern.html), e.g.
-`rosPackages.rolling.callPackage`.
+`buildROSWorkspace` is included in the ROS distro package sets.
+The following examples are designed to be invoked with [`callPackage`](https://nixos.org/guides/nix-pills/13-callpackage-design-pattern.html),
+e.g.  `rosPackages.rolling.callPackage`.
 
 `buildROSWorkspace` takes a derivation name and several sets of packages.
 
