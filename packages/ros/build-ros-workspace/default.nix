@@ -8,11 +8,10 @@
   colcon,
   ros-core,
   workspace-autocomplete-setup,
-
-  manualDomainId ? builtins.getEnv "NRWS_DOMAIN_ID",
 }:
 let
-  domainId = if manualDomainId == "" then 0 else manualDomainId;
+  envDomainId = builtins.getEnv "NRWS_DOMAIN_ID";
+  domainId = if envDomainId == "" then 0 else envDomainId;
 in
 {
   # The name of the workspace.

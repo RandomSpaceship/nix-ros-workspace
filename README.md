@@ -58,23 +58,33 @@ issues.
 The following examples are designed to be invoked with [`callPackage`](https://nixos.org/guides/nix-pills/13-callpackage-design-pattern.html),
 e.g.  `rosPackages.rolling.callPackage`.
 
-`buildROSWorkspace` takes a derivation name and several sets of packages.
+#### Parameters
 
-- `devPackages` are packages that are under active development. They will be
-available in the release environment (`nix-build`), but in the development
-environment (`nix-shell`), only the build inputs of the packages will be
-available.
+`buildROSWorkspace` takes a derivation name, several sets of packages, and a few parameters to create the workspace:
 
-- `prebuiltPackages` are packages that are not under active development (typically
-third-party packages). They will be available in both the release and
-development environments.
+- `devPackages` (package set): Packages that are under active development.
+  They will be available in the release environment (`nix-build`),
+  but in the development environment (`nix-shell`), only the build inputs of the packages will be available.
+- `prebuiltPackages` (package set): Packages that are not under active development (typically third-party packages).
+  They will be available in both the release and development environments.
+- `prebuiltShellPackages` (package set): Packages that will get added only to the development shell environment.
+  This is useful for build tools like GDB.
+- `interactive` (boolean): Whether or not the workspace should be configured for interactive use.
+  Currently only includes the autocomplete script.
+- `releaseDomainId` (integer): Default ROS domain ID in the release environment.
+  Can be overridden using the `ROS_DOMAIN_ID` environment variable unless `forceReleaseDomainId` is set.
+- `environmentDomainId` (integer): Default ROS domain ID in the development environment.
+  Can be overridden using the `ROS_DOMAIN_ID` environment variable.
+- `forceReleaseDomainId` (boolean): Whether or not to allow the `ROS_DOMAIN_ID` environment variable to change the domain ID in the production environment.
+- `preShellHook` (string): String to insert at the start of the development environment's `shellHook`.
+- `postShellHook` (string): String to insert at the end of the development environment's `shellHook`.
+- `extraRosWrapperArgs` (string): Extra arguments to pass to the `makeWrapper` call for ROS executables.
 
-- `prebuiltShellPackages` are packages that will get added only to the development
-shell environment. This is useful for build tools like GDB.
+Both `releaseDomainId` and `environmentDomainId` will default to the value of the `NRWS_DOMAIN_ID` environment variable at evaluation time [^env-var], or `0` if it is unset.
 
-In order to set a default ROS domain ID, the `manualDomainId` argument can be
-set. This defaults to the value of the `NRWS_DOMAIN_ID` environment variable at
-evaluation time, or `0` if it is unset.
+[^env-var]: However, this requires impure evaluation to take effect.
+
+#### Examples
 
 ```nix
 { buildROSWorkspace
